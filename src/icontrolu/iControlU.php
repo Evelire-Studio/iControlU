@@ -164,8 +164,7 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
         }elseif($this->isControlling($event->getPlayer())){
             $event->setCancelled();
             $pk = new AnimatePacket();
-            //TODO: entityRuntimeId
-            $pk->eid = $this->sessions[$event->getPlayer()->getName()]->getTarget()->getID();
+            $pk->entityRuntimeId = $this->sessions[$event->getPlayer()->getName()]->getTarget()->getID();
             $pk->action = $event->getAnimationType();
             $this->getServer()->broadcastPacket($this->sessions[$event->getPlayer()->getName()]->getTarget()->getViewers(), $pk);
         }
