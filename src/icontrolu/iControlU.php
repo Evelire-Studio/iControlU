@@ -1,4 +1,5 @@
 <?php
+
 namespace icontrolu;
 
 use pocketmine\command\Command;
@@ -7,7 +8,6 @@ use pocketmine\command\CommandSender;
 use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\block\BlockPlaceEvent;
 use pocketmine\event\entity\EntityMoveEvent;
-use icontrolu\InventoryUpdateTask;
 use pocketmine\event\inventory\InventoryPickupItemEvent;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerAnimationEvent;
@@ -25,13 +25,15 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
     public $s;
     /** @var  InventoryUpdateTask */
     public $inv;
-    public function onEnable() : void{
+
+    public function onEnable(): void{
         $this->s = [];
         $this->b = [];
         $this->inv = new InventoryUpdateTask($this);
         $this->getScheduler()->scheduleRepeatingTask($this->inv, 5);
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
     }
+
     public function onCommand(CommandSender $sender, Command $cmd, string $label, array $args): bool{
         if($sender instanceof Player){
             if(isset($args[0])){
@@ -44,8 +46,7 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
                             unset($this->s[$sender->getName()]);
                             $sender->sendMessage("Control stopped. You have invisibility for 10 seconds.");
                             return true;
-                        }
-                        else{
+                        }else{
                             $sender->sendMessage("You are not controlling anyone.");
                         }
                         break;
@@ -57,27 +58,23 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
                                     if(isset($this->s[$p->getName()]) || isset($this->b[$p->getName()])){
                                         $sender->sendMessage("You are already bound to a control session.");
                                         return true;
-                                    }
-                                    else{
+                                    }else{
                                         if($p->hasPermission("icu.exempt") || $p->getName() === $sender->getName()){
                                             $sender->sendMessage("You can't control this player.");
                                             return true;
 
-                                        }
-                                        else{
+                                        }else{
                                             $this->s[$sender->getName()] = new ControlSession($sender, $p, $this);
                                             $this->b[$p->getName()] = true;
                                             $sender->sendMessage("You are now controlling " . $p->getName());
                                             return true;
                                         }
                                     }
-                                }
-                                else{
+                                }else{
                                     $sender->sendMessage("Player not online.");
                                     return true;
                                 }
-                            }
-                            else{
+                            }else{
                                 $sender->sendMessage("Player not found.");
                                 return true;
                             }
@@ -88,34 +85,35 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
                         break;
                 }
             }
-        }
-        else{
+        }else{
             $sender->sendMessage("Please run command in game.");
             return true;
         }
     }
+
     public function onMove(PlayerMoveEvent $event){
         if($this->isBarred($event->getPlayer())){
             $event->setCancelled();
-        }
-        elseif($this->isControl($event->getPlayer())){
+        }elseif($this->isControl($event->getPlayer())){
             $this->s[$event->getPlayer()->getName()]->updatePosition();
         }
     }
+
     public function onMessage(PlayerChatEvent $event){
         if($this->isBarred($event->getPlayer())){
             $event->setCancelled();
-        }
-        elseif($this->isControl($event->getPlayer())){
+        }elseif($this->isControl($event->getPlayer())){
             $this->s[$event->getPlayer()->getName()]->sendChat($event);
             $event->setCancelled();
         }
     }
+
     public function onItemDrop(PlayerDropItemEvent $event){
         if($this->isBarred($event->getPlayer())){
             $event->setCancelled();
         }
     }
+
     public function onItemPickup(InventoryPickupItemEvent $event){
         if($event->getInventory()->getHolder() instanceof Player){
             if($this->isBarred($event->getInventory()->getHolder())){
@@ -123,22 +121,24 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
             }
         }
     }
+
     public function onBreak(BlockBreakEvent $event){
         if($this->isBarred($event->getPlayer())){
             $event->setCancelled();
         }
     }
+
     public function onPlace(BlockPlaceEvent $event){
         if($this->isBarred($event->getPlayer())){
             $event->setCancelled();
         }
     }
+
     public function onQuit(PlayerQuitEvent $event){
         if($this->isControl($event->getPlayer())){
             unset($this->b[$this->s[$event->getPlayer()->getName()]->getTarget()->getName()]);
             unset($this->s[$event->getPlayer()->getName()]);
-        }
-        elseif($this->isBarred($event->getPlayer())){
+        }elseif($this->isBarred($event->getPlayer())){
             foreach($this->s as $i){
                 if($i->getTarget()->getName() == $event->getPlayer()->getName()){
                     $i->getControl()->sendMessage($event->getPlayer()->getName() . " has left the game. Your session has been closed.");
@@ -154,11 +154,11 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
             }
         }
     }
+
     public function onPlayerAnimation(PlayerAnimationEvent $event){
         if($this->isBarred($event->getPlayer())){
             $event->setCancelled();
-        }
-        elseif($this->isControl($event->getPlayer())){
+        }elseif($this->isControl($event->getPlayer())){
             $event->setCancelled();
             $pk = new AnimatePacket();
             $pk->eid = $this->s[$event->getPlayer()->getName()]->getTarget()->getID();
@@ -166,6 +166,7 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
             $this->getServer()->broadcastPacket($this->s[$event->getPlayer()->getName()]->getTarget()->getViewers(), $pk);
         }
     }
+
     public function onDisable(){
         $this->getLogger()->info("Sessions are closing...");
         foreach($this->s as $i){
@@ -178,9 +179,11 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
             unset($this->s[$i->getControl()->getName()]);
         }
     }
+
     public function isControl(Player $p){
         return (isset($this->s[$p->getName()]));
     }
+
     public function isBarred(Player $p){
         return (isset($this->b[$p->getName()]));
     }
