@@ -9,7 +9,6 @@ use pocketmine\command\CommandExecutor;
 use pocketmine\command\CommandSender;
 use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\block\BlockPlaceEvent;
-use pocketmine\event\entity\EntityMoveEvent;
 use pocketmine\event\inventory\InventoryPickupItemEvent;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerAnimationEvent;
@@ -22,17 +21,14 @@ use pocketmine\Player;
 use pocketmine\plugin\PluginBase;
 
 class iControlU extends PluginBase implements CommandExecutor, Listener{
-    public $b;
-    /** @var  ControlSession[] */
-    public $s;
-    /** @var  InventoryUpdateTask */
-    public $inv;
+    /** @var ControlSession[] */
+    protected $sessions = [];
+    /** @var array|string[] */
+    protected $victims = [];
 
     public function onEnable() : void{
-        $this->s = [];
-        $this->b = [];
-        $this->inv = new InventoryUpdateTask($this);
-        $this->getScheduler()->scheduleRepeatingTask($this->inv, 5);
+        $this->getScheduler()->scheduleRepeatingTask(new InventoryUpdateTask($this), 5);
+
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
     }
 
@@ -42,11 +38,14 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
                 switch($args[0]){
                     case 'stop':
                     case 's':
-                        if($this->isControl($sender)){
-                            $this->s[$sender->getName()]->stopControl();
-                            unset($this->b[$this->s[$sender->getName()]->getTarget()->getName()]);
-                            unset($this->s[$sender->getName()]);
+                        if($this->isControlling($sender)){
+                            $this->sessions[$sender->getName()]->stopControl();
+
+                            unset($this->victims[$this->sessions[$sender->getName()]->getTarget()->getName()]);
+                            unset($this->sessions[$sender->getName()]);
+
                             $sender->sendMessage("Control stopped. You have invisibility for 10 seconds.");
+
                             return true;
                         }else{
                             $sender->sendMessage("You are not controlling anyone.");
@@ -66,8 +65,8 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
                                             return true;
 
                                         }else{
-                                            $this->s[$sender->getName()] = new ControlSession($this, $sender, $p);
-                                            $this->b[$p->getName()] = true;
+                                            $this->sessions[$sender->getName()] = new ControlSession($this, $sender, $p);
+                                            $this->victims[$p->getName()] = true;
                                             $sender->sendMessage("You are now controlling " . $p->getName());
                                             return true;
                                         }
@@ -91,66 +90,68 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
             $sender->sendMessage("Please run command in game.");
             return true;
         }
+
+        return true;
     }
 
     public function onMove(PlayerMoveEvent $event){
-        if($this->isBarred($event->getPlayer())){
+        if($this->isVictim($event->getPlayer())){
             $event->setCancelled();
-        }elseif($this->isControl($event->getPlayer())){
-            $this->s[$event->getPlayer()->getName()]->updatePosition();
+        }elseif($this->isControlling($event->getPlayer())){
+            $this->sessions[$event->getPlayer()->getName()]->updatePosition();
         }
     }
 
     public function onMessage(PlayerChatEvent $event){
-        if($this->isBarred($event->getPlayer())){
-            $event->setCancelled();
-        }elseif($this->isControl($event->getPlayer())){
-            $this->s[$event->getPlayer()->getName()]->sendChat($event);
-            $event->setCancelled();
+        if($this->isVictim($event->getPlayer())){
+            $event->setCancelled(true);
+        }elseif($this->isControlling($event->getPlayer())){
+            $this->sessions[$event->getPlayer()->getName()]->sendChat($event);
+            $event->setCancelled(true);
         }
     }
 
     public function onItemDrop(PlayerDropItemEvent $event){
-        if($this->isBarred($event->getPlayer())){
-            $event->setCancelled();
+        if($this->isVictim($event->getPlayer())){
+            $event->setCancelled(true);
         }
     }
 
     public function onItemPickup(InventoryPickupItemEvent $event){
         if($event->getInventory()->getHolder() instanceof Player){
-            if($this->isBarred($event->getInventory()->getHolder())){
-                $event->setCancelled();
+            if($this->isVictim($event->getInventory()->getHolder())){
+                $event->setCancelled(true);
             }
         }
     }
 
     public function onBreak(BlockBreakEvent $event){
-        if($this->isBarred($event->getPlayer())){
-            $event->setCancelled();
+        if($this->isVictim($event->getPlayer())){
+            $event->setCancelled(true);
         }
     }
 
     public function onPlace(BlockPlaceEvent $event){
-        if($this->isBarred($event->getPlayer())){
-            $event->setCancelled();
+        if($this->isVictim($event->getPlayer())){
+            $event->setCancelled(true);
         }
     }
 
     public function onQuit(PlayerQuitEvent $event){
-        if($this->isControl($event->getPlayer())){
-            unset($this->b[$this->s[$event->getPlayer()->getName()]->getTarget()->getName()]);
-            unset($this->s[$event->getPlayer()->getName()]);
-        }elseif($this->isBarred($event->getPlayer())){
-            foreach($this->s as $i){
-                if($i->getTarget()->getName() == $event->getPlayer()->getName()){
-                    $i->getControl()->sendMessage($event->getPlayer()->getName() . " has left the game. Your session has been closed.");
+        if($this->isControlling($event->getPlayer())){
+            unset($this->victims[$this->sessions[$event->getPlayer()->getName()]->getTarget()->getName()]);
+            unset($this->sessions[$event->getPlayer()->getName()]);
+        }elseif($this->isVictim($event->getPlayer())){
+            foreach($this->sessions as $session){
+                if($session->getTarget()->getName() == $event->getPlayer()->getName()){
+                    $session->getSource()->sendMessage($event->getPlayer()->getName() . " has left the game. Your session has been closed.");
                     foreach($this->getServer()->getOnlinePlayers() as $online){
-                        $online->showPlayer($i->getControl());
+                        $online->showPlayer($session->getSource());
                     }
-                    $i->getControl()->showPlayer($i->getTarget()); //Will work if my PR is merged
+                    $session->getSource()->showPlayer($session->getTarget()); //Will work if my PR is merged
 
-                    unset($this->b[$event->getPlayer()->getName()]);
-                    unset($this->s[$i->getControl()->getName()]);
+                    unset($this->victims[$event->getPlayer()->getName()]);
+                    unset($this->sessions[$session->getSource()->getName()]);
                     break;
                 }
             }
@@ -158,35 +159,50 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
     }
 
     public function onPlayerAnimation(PlayerAnimationEvent $event){
-        if($this->isBarred($event->getPlayer())){
+        if($this->isVictim($event->getPlayer())){
             $event->setCancelled();
-        }elseif($this->isControl($event->getPlayer())){
+        }elseif($this->isControlling($event->getPlayer())){
             $event->setCancelled();
             $pk = new AnimatePacket();
-            $pk->eid = $this->s[$event->getPlayer()->getName()]->getTarget()->getID();
+            //TODO: entityRuntimeId
+            $pk->eid = $this->sessions[$event->getPlayer()->getName()]->getTarget()->getID();
             $pk->action = $event->getAnimationType();
-            $this->getServer()->broadcastPacket($this->s[$event->getPlayer()->getName()]->getTarget()->getViewers(), $pk);
+            $this->getServer()->broadcastPacket($this->sessions[$event->getPlayer()->getName()]->getTarget()->getViewers(), $pk);
         }
     }
 
     public function onDisable(){
         $this->getLogger()->info("Sessions are closing...");
-        foreach($this->s as $i){
-            $i->getControl()->sendMessage("iCU is disabling, you are visible.");
+        foreach($this->sessions as $session){
+            $session->getSource()->sendMessage("iCU is disabling, you are visible.");
+
             foreach($this->getServer()->getOnlinePlayers() as $online){
-                $online->showPlayer($i->getControl());
+                $online->showPlayer($session->getSource());
             }
-            $i->getControl()->showPlayer($i->getTarget());
-            unset($this->b[$i->getTarget()->getName()]);
-            unset($this->s[$i->getControl()->getName()]);
+
+            $session->getSource()->showPlayer($session->getTarget());
         }
     }
 
-    public function isControl(Player $p){
-        return (isset($this->s[$p->getName()]));
+    public function isControlling(Player $player){
+        return (isset($this->sessions[$player->getName()]));
     }
 
-    public function isBarred(Player $p){
-        return (isset($this->b[$p->getName()]));
+    public function isVictim(Player $player){
+        return (isset($this->victims[$player->getName()]));
+    }
+
+    /**
+     * @return ControlSession[]
+     */
+    public function getSessions() : array{
+        return $this->sessions;
+    }
+
+    /**
+     * @return array|string[]
+     */
+    public function getVictims(){
+        return $this->victims;
     }
 }

@@ -5,20 +5,25 @@ declare(strict_types=1);
 namespace icontrolu;
 
 use pocketmine\Player;
-use pocketmine\plugin\Plugin;
 use pocketmine\scheduler\Task;
 
 class InvisibilityTask extends Task{
-    private $p;
+    /** @var iControlU */
+    protected $plugin;
 
-    public function __construct(Plugin $main, Player $p){
-        $this->p = $p;
+    /** @var Player */
+    protected $source;
+
+    public function __construct(iControlU $plugin, Player $player){
+        $this->plugin = $plugin;
+        $this->source = $player;
     }
 
-    public function onRun(int $tick) : void{
-        $this->p->sendMessage("You are no longer invisible.");
-        foreach($this->getOwner()->getServer()->getOnlinePlayers() as $online){
-            $online->showPlayer($this->p);
+    public function onRun(int $currentTick) : void{
+        $this->source->sendMessage("You are no longer invisible.");
+
+        foreach($this->plugin->getServer()->getOnlinePlayers() as $player){
+            $player->showPlayer($this->source);
         }
     }
 }

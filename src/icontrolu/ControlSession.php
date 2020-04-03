@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace icontrolu;
 
 use pocketmine\event\player\PlayerChatEvent;
+use pocketmine\item\Item;
 use pocketmine\Player;
 
 class ControlSession{
@@ -15,7 +16,7 @@ class ControlSession{
     protected $player;
     /** @var Player */
     protected $target;
-    /** @var array|\pocketmine\item\Item[] */
+    /** @var array|Item[] */
     protected $inventoryContents;
 
     function __construct(iControlU $plugin, Player $player, Player $target){
@@ -23,23 +24,26 @@ class ControlSession{
 
         $this->player = $player;
         $this->target = $target;
+
         /* Hide from others */
         foreach($this->plugin->getServer()->getOnlinePlayers() as $online){
             $online->hidePlayer($player);
         }
+
         /* Teleport to and hide target */
         $this->player->hidePlayer($this->target);
         $this->player->teleport($this->target->getPosition());
+
         /* Send Inventory */
         $this->inventoryContents = $this->player->getInventory()->getContents();
         $this->player->getInventory()->setContents($this->target->getInventory()->getContents());
     }
 
-    public function getControl(){
+    public function getSource() : Player{
         return $this->player;
     }
 
-    public function getTarget(){
+    public function getTarget() : Player{
         return $this->target;
     }
 
