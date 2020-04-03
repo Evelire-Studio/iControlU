@@ -26,7 +26,7 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
     /** @var  InventoryUpdateTask */
     public $inv;
 
-    public function onEnable(): void{
+    public function onEnable() : void{
         $this->s = [];
         $this->b = [];
         $this->inv = new InventoryUpdateTask($this);
@@ -34,7 +34,7 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
     }
 
-    public function onCommand(CommandSender $sender, Command $cmd, string $label, array $args): bool{
+    public function onCommand(CommandSender $sender, Command $cmd, string $label, array $args) : bool{
         if($sender instanceof Player){
             if(isset($args[0])){
                 switch($args[0]){
@@ -64,7 +64,7 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
                                             return true;
 
                                         }else{
-                                            $this->s[$sender->getName()] = new ControlSession($sender, $p, $this);
+                                            $this->s[$sender->getName()] = new ControlSession($this, $sender, $p);
                                             $this->b[$p->getName()] = true;
                                             $sender->sendMessage("You are now controlling " . $p->getName());
                                             return true;

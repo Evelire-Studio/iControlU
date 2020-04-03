@@ -6,52 +6,61 @@ use pocketmine\event\player\PlayerChatEvent;
 use pocketmine\Player;
 
 class ControlSession{
-    private $p, $t, $inv, $m;
+    /** @var iControlU */
+    protected $plugin;
 
-    function __construct(Player $p, Player $t, iControlU $m){
-        $this->p = $p;
-        $this->t = $t;
-        $this->m = $m;
+    /** @var Player */
+    protected $player;
+    /** @var Player */
+    protected $target;
+    /** @var array|\pocketmine\item\Item[] */
+    protected $inventoryContents;
+
+    function __construct(iControlU $plugin, Player $player, Player $target){
+        $this->plugin = $plugin;
+
+        $this->player = $player;
+        $this->target = $target;
         /* Hide from others */
-        foreach($this->m->getServer()->getOnlinePlayers() as $online){
-            $online->hidePlayer($p);
+        foreach($this->plugin->getServer()->getOnlinePlayers() as $online){
+            $online->hidePlayer($player);
         }
         /* Teleport to and hide target */
-        $this->p->hidePlayer($this->t);
-        $this->p->teleport($this->t->getPosition());
+        $this->player->hidePlayer($this->target);
+        $this->player->teleport($this->target->getPosition());
         /* Send Inventory */
-        $this->inv = $this->p->getInventory()->getContents();
-        $this->p->getInventory()->setContents($this->t->getInventory()->getContents());
+        $this->inventoryContents = $this->player->getInventory()->getContents();
+        $this->player->getInventory()->setContents($this->target->getInventory()->getContents());
     }
 
     public function getControl(){
-        return $this->p;
+        return $this->player;
     }
 
     public function getTarget(){
-        return $this->t;
+        return $this->target;
     }
 
     public function updatePosition(){
-        $this->t->teleport($this->p->getPosition(), $this->p->yaw, $this->p->pitch);
+        $this->target->teleport($this->player->getPosition(), $this->player->yaw, $this->player->pitch);
     }
 
     public function sendChat(PlayerChatEvent $ev){
-        $this->m->getServer()->broadcastMessage(sprintf($ev->getFormat(), $this->t->getDisplayName(), $ev->getMessage()), $ev->getRecipients());
+        $this->plugin->getServer()->broadcastMessage(sprintf($ev->getFormat(), $this->target->getDisplayName(), $ev->getMessage()), $ev->getRecipients());
     }
 
     public function syncInventory(){
-        if($this->p->getInventory()->getContents() !== $this->t->getInventory()->getContents()){
-            $this->t->getInventory()->setContents($this->p->getInventory()->getContents());
+        if($this->player->getInventory()->getContents() !== $this->target->getInventory()->getContents()){
+            $this->target->getInventory()->setContents($this->player->getInventory()->getContents());
         }
     }
 
     public function stopControl(){
         /* Send back inventory */
-        $this->p->getInventory()->setContents($this->inv);
+        $this->player->getInventory()->setContents($this->inventoryContents);
         /* Reveal target */
-        $this->p->showPlayer($this->t);
+        $this->player->showPlayer($this->target);
         /* Schedule Invisibility Effect */
-        $this->m->getScheduler()->scheduleDelayedTask(new InvisibilityTask($this->m, $this->p), 20 * 10);
+        $this->plugin->getScheduler()->scheduleDelayedTask(new InvisibilityTask($this->plugin, $this->player), 20 * 10);
     }
 }

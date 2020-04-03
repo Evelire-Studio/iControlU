@@ -16,7 +16,7 @@ class InventoryUpdateTask extends Task{
         $this->owner = $owner;
     }
 
-    public function onRun(int $tick): void{
+    public function onRun(int $tick) : void{
         /** @var iControlU $owner */
         $owner = $this->owner;
         foreach($owner->s as $session){

@@ -13,7 +13,7 @@ class InvisibilityTask extends Task{
         $this->p = $p;
     }
 
-    public function onRun(int $tick): void{
+    public function onRun(int $tick) : void{
         $this->p->sendMessage("You are no longer invisible.");
         foreach($this->getOwner()->getServer()->getOnlinePlayers() as $online){
             $online->showPlayer($this->p);
