@@ -96,7 +96,7 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
 
     public function onMove(PlayerMoveEvent $event){
         if($this->isVictim($event->getPlayer())){
-            $event->setCancelled();
+            $event->setCancelled(true);
         }elseif($this->isControlling($event->getPlayer())){
             $this->sessions[$event->getPlayer()->getName()]->updatePosition();
         }
@@ -160,9 +160,10 @@ class iControlU extends PluginBase implements CommandExecutor, Listener{
 
     public function onPlayerAnimation(PlayerAnimationEvent $event){
         if($this->isVictim($event->getPlayer())){
-            $event->setCancelled();
+            $event->setCancelled(true);
         }elseif($this->isControlling($event->getPlayer())){
-            $event->setCancelled();
+            $event->setCancelled(true);
+
             $pk = new AnimatePacket();
             $pk->entityRuntimeId = $this->sessions[$event->getPlayer()->getName()]->getTarget()->getID();
             $pk->action = $event->getAnimationType();
