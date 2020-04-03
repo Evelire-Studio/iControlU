@@ -21,12 +21,21 @@ use pocketmine\Player;
 use pocketmine\plugin\PluginBase;
 
 class iControlU extends PluginBase implements CommandExecutor, Listener{
+    /** @var self */
+    protected static $instance;
+
     /** @var ControlSession[] */
     protected $sessions = [];
     /** @var array|string[] */
     protected $victims = [];
 
+    public static function getInstance() : self{
+        return self::$instance;
+    }
+
     public function onEnable() : void{
+        self::$instance = $this;
+
         $this->getScheduler()->scheduleRepeatingTask(new InventoryUpdateTask($this), 5);
 
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
